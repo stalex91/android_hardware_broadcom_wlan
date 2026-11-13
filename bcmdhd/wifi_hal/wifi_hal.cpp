@@ -298,14 +298,24 @@ wifi_error wifi_initialize(wifi_handle *handle)
 
     if ((wifi_add_membership(*handle, "scan") < 0) ||
         (wifi_add_membership(*handle, "mlme")  < 0) ||
-        (wifi_add_membership(*handle, "regulatory") < 0) ||
-        (wifi_add_membership(*handle, "vendor") < 0)) {
+        (wifi_add_membership(*handle, "regulatory") < 0)) {
         ALOGE("Add membership failed");
         nl_socket_free(cmd_sock);
         nl_socket_free(event_sock);
         pthread_mutex_destroy(&info->cb_lock);
         free(info);
         return WIFI_ERROR_NOT_AVAILABLE;
+    }
+
+    /*
+     * Kernels without the cfg80211 vendor command backport (e.g. the 3.10
+     * kernel of the Galaxy S5) have no "vendor" multicast group. Without it
+     * only the vendor features (gscan, link stats, RTT...) are missing;
+     * start anyway so the framework can still manage the chip and its
+     * firmware modes.
+     */
+    if (wifi_add_membership(*handle, "vendor") < 0) {
+        ALOGW("nl80211 has no vendor multicast group: vendor events disabled");
     }
 
     // ALOGI("Found %d interfaces", info->num_interfaces);
